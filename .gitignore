@@ -1,0 +1,22 @@
+# Terraform working files (lock files are committed on purpose)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+tfplan.json
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+!*.auto.tfvars.example
+
+# Local machine
+.DS_Store
+.env
+.env.*
+
+# Claude Code local state (project settings and .mcp.json ARE committed)
+.claude/settings.local.json
