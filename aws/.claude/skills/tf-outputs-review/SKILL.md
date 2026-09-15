@@ -1,9 +1,11 @@
 ---
 name: tf-outputs-review
-description: Review or write outputs.tf for a Terraform stack. Use when adding outputs, when refactoring outputs that downstream stacks consume, or when scaffolding a new stack's outputs.tf. Enforces splat for lists, stable names, and documentation in the stack README.
+description: Review or write outputs.tf for a Terraform stack. Use when adding outputs, when refactoring outputs that downstream stacks consume, or when scaffolding a new stack's outputs.tf. Enforces whole objects for singletons, splat for plurals, snake_case names, descriptions, and documentation in the stack README.
 ---
 
-# Output Conventions
+> Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md).
+
+# Output Conventions (Pattern 10)
 
 Outputs are the **public API** of a stack. Downstream stacks consume them via `terraform_remote_state`. Once an output is consumed, renaming it is a breaking change.
 
@@ -13,68 +15,75 @@ Outputs are the **public API** of a stack. Downstream stacks consume them via `t
 
 Do not publish every resource ID "just in case". An empty `outputs.tf` for a leaf stack is fine. Outputs are a contract; keep the surface small.
 
-### 2. Splat for Lists of Resources Created with `count` or `for_each`
+### 2. Whole Object for Singletons
+
+For a single resource, expose the resource object. The consumer picks the attribute it needs (`outputs.vpc.id`, `outputs.vpc.cidr_block`) without a new output per attribute.
 
 ```hcl
-output "private_subnet_ids" {
-  value = aws_subnet.private[*].id
+output "vpc" {
+  description = "The VPC object. Consumed by 02-eks (cluster VPC) and 03-data (security group scope, cidr_block)."
+  value       = aws_vpc.main
 }
 
-output "instance_arns" {
-  value = aws_instance.worker[*].arn
+output "internet_gateway" {
+  description = "The internet gateway object."
+  value       = aws_internet_gateway.this
+}
+```
+
+### 3. Splat for Plurals Created with `count`
+
+```hcl
+output "private_subnets_ids" {
+  description = "IDs of the private subnets, in AZ order. Consumed by 02-eks (node group) and 03-data (DB subnet group)."
+  value       = aws_subnet.private[*].id
+}
+
+output "private_subnet_arn" {
+  description = "ARNs of the private subnets."
+  value       = aws_subnet.private[*].arn
 }
 ```
 
 Never publish one output per index. The consumer can index into the list themselves.
 
-### 3. Stable Names
+### 4. Stable snake_case Names
 
-Output names are the contract. Once a downstream stack reads `outputs.vpc_id`, renaming it requires coordinating with everyone who consumes it.
+Output names are the contract. Once a downstream stack reads `outputs.private_subnets_ids`, renaming it requires coordinating with everyone who consumes it.
 
-Convention: `<resource_type>_<attribute>` or `<role>_<attribute>` for clarity.
+- Singletons: the resource's role (`vpc`, `nat_gateway`, `eks_cluster`, `state_bucket`).
+- Plurals: role + attribute suffix (`public_subnets_ids`, `private_subnet_arn`).
+- A scalar convenience output is fine when a downstream needs exactly one attribute (`cluster_name` for kubeconfig, `rds_endpoint`).
 
-```hcl
-output "vpc_id"               { value = aws_vpc.this.id }
-output "vpc_cidr"             { value = aws_vpc.this.cidr_block }
-output "private_subnet_ids"   { value = aws_subnet.private[*].id }
-output "alb_dns_name"         { value = aws_lb.web.dns_name }
-output "rds_endpoint"         { value = aws_db_instance.main.endpoint }
-```
+### 5. Sensitive Outputs
 
-### 4. Sensitive Outputs
-
-If the output exposes a secret (password, private key, token), mark it sensitive:
+If the output exposes a secret (password, private key, token) or a resource object that carries one, mark it sensitive:
 
 ```hcl
-output "db_password" {
-  value     = random_password.db.result
-  sensitive = true
+output "rds_instance" {
+  description = "The RDS instance object (carries master_user_secret)."
+  value       = aws_db_instance.this
+  sensitive   = true
 }
 ```
 
 Better: avoid publishing the secret. Have the downstream stack read it directly from Secrets Manager.
 
-### 5. Description on Every Output
+### 6. Description on Every Output
 
-```hcl
-output "private_subnet_ids" {
-  description = "IDs of the private subnets across all AZs. Use for EKS node groups, RDS subnet groups, internal ALBs."
-  value       = aws_subnet.private[*].id
-}
-```
+The description says what the value is and who consumes it. It is what shows up in `terraform show` and in the audit trail. Treat it as API documentation.
 
-The description is what shows up in `terraform show` and in the audit trail. Treat it as API documentation.
+### 7. Document in the Stack README
 
-### 6. Document in the Stack README
-
-The stack's `README.md` must list what it provides (outputs) and what downstream stacks consume each one. Example:
+The stack's `README.md` lists what it provides (outputs) and which downstream stacks consume each one:
 
 ```markdown
 ## Provides (for downstream stacks)
 
-- `vpc_id`             ... consumed by 02-eks, 03-rds, 04-elasticache
-- `private_subnet_ids` ... consumed by 02-eks, 03-rds
-- `alb_dns_name`       ... consumed by 05-dns (Route53 alias)
+- `vpc` ... consumed by 02-eks, 03-data
+- `public_subnets_ids` ... consumed by 02-eks
+- `private_subnets_ids` ... consumed by 02-eks, 03-data
+- `internet_gateway`, `nat_gateway`, `public_subnet_arn`, `private_subnet_arn` ... published for completeness
 ```
 
 This is the dependency map for the entire IaC project. Keep it current.
@@ -82,16 +91,17 @@ This is the dependency map for the entire IaC project. Keep it current.
 ## Workflow When Reviewing
 
 1. Read the current `outputs.tf`.
-2. Read which downstream stacks consume each output (grep across the repo for `data.terraform_remote_state.<this_stack>`).
+2. Read which downstream stacks consume each output (grep across the repo for `data.terraform_remote_state.<short_name>.outputs.`).
 3. Flag any:
-   - Unused outputs (nobody consumes ... candidate for removal)
-   - Missing outputs that the README claims to provide
+   - Missing outputs that a downstream `datasources.tf` or the README claims to consume
    - Outputs without `description`
-   - Lists not using splat
-   - Sensitive values not marked
+   - Per-attribute outputs of a singleton where the whole object would do
+   - Plurals not using splat
+   - Sensitive values (or objects carrying them) not marked
+   - Names not in snake_case
 4. Propose a diff.
-5. If removing an output, confirm with the user ... it's a breaking change for downstream stacks.
-6. Validate via `terraform_validate`.
+5. If removing an output, confirm with the user; it is a breaking change for downstream stacks.
+6. Run `terraform fmt` and `terraform validate` through Bash.
 
 ## Anti-Patterns to Reject
 
@@ -101,26 +111,37 @@ This is the dependency map for the entire IaC project. Keep it current.
 # WRONG
 output "subnet_0" { value = aws_subnet.private[0].id }
 output "subnet_1" { value = aws_subnet.private[1].id }
-output "subnet_2" { value = aws_subnet.private[2].id }
 
 # RIGHT
-output "private_subnet_ids" { value = aws_subnet.private[*].id }
+output "private_subnets_ids" { value = aws_subnet.private[*].id }
 ```
 
-### Publishing internal IDs that downstream doesn't need
-
-If only this stack consumes the value (e.g. an intermediate resource), it does not need an output. State already has it.
-
-### Wrapping outputs in an object "for tidiness"
+### Per-attribute outputs of a singleton
 
 ```hcl
-# WRONG ... downstream now reads outputs.network.vpc_id (extra indirection)
+# WRONG: three outputs, three names to keep stable
+output "vpc_id"   { value = aws_vpc.main.id }
+output "vpc_cidr" { value = aws_vpc.main.cidr_block }
+output "vpc_arn"  { value = aws_vpc.main.arn }
+
+# RIGHT: one object; the consumer reads outputs.vpc.id, outputs.vpc.cidr_block
+output "vpc" { value = aws_vpc.main }
+```
+
+### Hand-built wrapper objects
+
+```hcl
+# WRONG: an ad-hoc map the consumer has to learn (outputs.network.subnet_ids)
 output "network" {
   value = {
-    vpc_id     = aws_vpc.this.id
+    vpc_id     = aws_vpc.main.id
     subnet_ids = aws_subnet.private[*].id
   }
 }
 ```
 
-Keep outputs flat. The consumer reads `outputs.vpc_id`, not `outputs.network.vpc_id`.
+Expose the resource object itself (`vpc`) and the splat list (`private_subnets_ids`) as two outputs. Resource objects are the provider's schema; wrapper maps are a schema nobody documents.
+
+### Publishing internal IDs that downstream doesn't need
+
+If only this stack consumes the value (e.g. an intermediate resource), it does not need an output. State already has it.

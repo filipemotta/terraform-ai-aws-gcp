@@ -29,7 +29,7 @@ terraform {
 }
 
 # Workspace-aware role selection: production is plan-only for the agent.
-# The hard guardrail lives in IAM (see iam/plan-only-policy.json), not here.
+# The hard guardrail lives in IAM (see iam/README.md), not here.
 # Any workspace not listed here (including "default", the one a fresh
 # `terraform init` lands in) falls back to var.assume_role.role_arn, which
 # defaults to the plan-only role: unknown workspaces fail closed.

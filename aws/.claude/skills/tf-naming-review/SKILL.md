@@ -3,9 +3,13 @@ name: tf-naming-review
 description: Enforce Terraform resource label and tag naming conventions. Use when reviewing or writing resource blocks, when the user asks to "rename this resource" or "add tags", or when auditing a stack for naming consistency.
 ---
 
+> Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md).
+
 # Resource Naming and Tag Conventions
 
-## Resource Label Convention
+Three rules, in this order: the resource label (Pattern 5), the tag block (Pattern 7), the value of the `Name` tag (Pattern 8).
+
+## Resource Label Convention (Pattern 5)
 
 The label after the resource type (e.g. `aws_s3_bucket "this"`) communicates intent:
 
@@ -14,129 +18,78 @@ The label after the resource type (e.g. `aws_s3_bucket "this"`) communicates int
 When the stack has exactly one instance of this resource type:
 
 ```hcl
-resource "aws_s3_bucket" "this" { ... }
-resource "aws_vpc"        "this" { ... }
+resource "aws_s3_bucket" "this"       { ... }
+resource "aws_internet_gateway" "this" { ... }
+resource "aws_eks_cluster" "this"     { ... }
 ```
 
-### `"main"` ... primary instance with secondaries
-
-When there's a primary and some auxiliaries:
+### `"main"` ... principal resource when derivatives exist
 
 ```hcl
-resource "aws_db_instance" "main"    { ... }
-resource "aws_db_instance" "replica" { ... }
+resource "aws_vpc" "main" { ... }     # subnets, route tables, gateways hang off it
 ```
 
 ### Role names ... multiple instances with different purposes
 
 ```hcl
-resource "aws_security_group" "web"    { ... }
-resource "aws_security_group" "api"    { ... }
-resource "aws_security_group" "worker" { ... }
+resource "aws_subnet" "public"       { count = ... }
+resource "aws_subnet" "private"      { count = ... }
+resource "aws_route_table" "public"  { ... }
+resource "aws_route_table" "private" { ... }
+resource "aws_iam_role" "cluster"    { ... }
+resource "aws_iam_role" "node"       { ... }
+resource "aws_eks_access_entry" "admin" { ... }
 ```
 
-### `count` index for plurals
+Rules:
+- If the resource appears once in the stack, use `this`.
+- Labels are single lowercase words. No hyphens (`node`, not `eks-node-group`), no environment or project in the label.
+- Plurals of the same role use `count` (Pattern 6) and are referenced as `aws_subnet.private[0]`, `aws_subnet.private[*].id`.
 
-When provisioning N instances of the same role, use `count`:
+## Tag Block (Pattern 7)
 
-```hcl
-resource "aws_subnet" "private" {
-  count = var.az_count
-  ...
-}
-
-# referenced as aws_subnet.private[0], aws_subnet.private[*].id
-```
-
-## Tag Convention
-
-Three layers of tags, merged in order:
-
-### Layer 1 ... `default_tags` on the provider
-
-Always-on tags. Set on the provider block, inherited by all resources that support tagging.
+`default_tags` on the provider injects the global tags (`Project`, `Env`, `region`, `ManagedBy`, from `var.tags`). Each resource carries ONLY the `Name` tag:
 
 ```hcl
-provider "aws" {
-  default_tags {
-    tags = {
-      Project     = "my-iac"
-      ManagedBy   = "terraform"
-      Environment = var.environment
-      CostCenter  = var.cost_center
-      Owner       = var.owner
-    }
-  }
+tags = {
+  Name = var.vpc.name
 }
 ```
 
-### Layer 2 ... Resource-specific tags
+Inline form is fine for short resources: `tags = { Name = var.vpc.public_route_table_name }`.
 
-Tags that apply only to this resource, not to all resources in the project.
+- Never repeat `Project`, `Env`, `region` or `ManagedBy` on a resource.
+- No second layer of resource-specific tags (`Purpose`, `Retention`, ...). If a tag is needed for cost allocation, it belongs in `var.tags`.
+- Exception: tags a managed service requires for discovery (e.g. `kubernetes.io/role/elb` and `kubernetes.io/role/internal-elb` on subnets for EKS load balancers). Add them only when the platform needs them, and list each one in the stack README under Provisions.
+- If a resource type does not support `tags`, say so in the stack README. Do not invent a workaround.
 
-```hcl
-resource "aws_s3_bucket" "logs" {
-  bucket = "${var.project}-logs"
-  tags = {
-    Purpose      = "Application logs"
-    Retention    = "90-days"
-  }
-}
-```
+## Value of the `Name` Tag (Pattern 8)
 
-Never repeat `Project`, `ManagedBy`, `Environment` here ... they come from `default_tags`.
-
-### Layer 3 ... `Name` tag
-
-The `Name` tag is the human-readable identifier. Convention: `<env>-<role>-<index>`.
+Pattern: `<type>-<project>-<condensed-region>`.
 
 ```hcl
-resource "aws_instance" "web" {
-  count = 3
-  tags = {
-    Name = "${var.environment}-web-${format("%02d", count.index + 1)}"
-  }
-}
-
-# Resulting names: prod-web-01, prod-web-02, prod-web-03
+name                     = "vpc-atlas-useast1"
+internet_gateway_name    = "igw-atlas-useast1"
+nat_gateway_name         = "nat-gateway-atlas-useast1"
+public_route_table_name  = "public-route-table-atlas-useast1"
+private_route_table_name = "private-route-table-atlas-useast1"
 ```
 
-Rules for the `Name` tag:
-- Lowercase, dash-separated
-- No environment ambiguity (always include `<env>`)
-- Numbers padded to 2 digits if there will be more than 9 instances
-- No spaces, no special characters
-
-## Resources That Don't Inherit `default_tags`
-
-Some resources do not inherit `default_tags` from the provider (notably `aws_s3_object`, some EBS attachments). For these, set tags manually using the same merge pattern:
-
-```hcl
-resource "aws_s3_object" "data" {
-  ...
-  tags = merge(
-    {
-      Project     = "my-iac"
-      ManagedBy   = "terraform"
-      Environment = var.environment
-    },
-    {
-      Purpose = "data export"
-    }
-  )
-}
-```
-
-Check the AWS provider docs (via Context7 if uncertain) for which resource types support `default_tags` propagation.
+- Condensed region: `us-east-1` becomes `useast1` (no hyphens).
+- Plural resources take a numeric suffix: `public-subnet-1`, `public-subnet-2`, `private-subnet-1`.
+- EKS cluster: `eks-cluster-<project>`; cluster IAM role: `eks-cluster-iam-role-<project>`; node group: `eks-node-group-<project>`.
+- Lowercase, dash-separated, no spaces, no special characters.
+- The value lives in the domain object (`var.vpc.name`), never as a literal in the resource block.
 
 ## Workflow When Reviewing
 
-1. Read the resource blocks in the stack.
+1. Read the resource blocks in the stack and the domain object in `variables.tf`.
 2. Flag any:
-   - Resource labels that don't follow the `this` / `main` / role convention
-   - Missing `Name` tag where appropriate
-   - Tags that duplicate `default_tags`
-   - Missing required tags (CostCenter, Owner) if defined in `CLAUDE.md`
+   - Resource label that does not follow `this` / `main` / role, or contains a hyphen
+   - Missing `Name` tag on a taggable resource
+   - Tag other than `Name` that is not a documented discovery tag
+   - Tag that duplicates `default_tags`
+   - `Name` value that does not follow `<type>-<project>-<condensed-region>` (or `-<n>` for plurals)
 3. Propose a diff to fix.
-4. Validate via `terraform_validate`.
-5. Note: renaming a resource label triggers `terraform plan` to show destroy/create. If the resource is stateful (DB, S3 bucket), use `moved` blocks to rename without destruction.
+4. Run `terraform fmt` and `terraform validate` through Bash.
+5. Note: renaming a resource label makes `terraform plan` show destroy/create. If the resource is stateful (DB, S3 bucket), use `moved` blocks to rename without destruction.

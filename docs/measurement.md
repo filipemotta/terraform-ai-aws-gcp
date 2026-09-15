@@ -17,7 +17,7 @@ up-front documentation verification (18:29–18:36) which served both clouds.
 | `variable` blocks | 13 | 14 | |
 | `output` blocks | 17 | 17 | 1.00 |
 | Pack files (`CLAUDE.md` + `.claude/**`) | 13 | 13 | 1.00 |
-| `CLAUDE.md` lines | 76 | 78 (15 lines differ) | |
+| `CLAUDE.md` lines | 82 | 84 (24 lines differ) | after the post-review alignment; 76 / 78 (15 differing) as first built |
 
 Per stack:
 
@@ -52,9 +52,20 @@ route tables and associations that GCP expresses as one subnet plus Cloud NAT.
 | ├ 03-data | 18:57:13 | 18:57:55 | 42 s | 1 (0) |
 | └ IAM plan-only doc | (inside 03) | | | — |
 
-Four AWS stacks: ~7 min 06 s of stack time. Four GCP stacks: 2 min 23 s of stack time
-(3 min 07 s including the gap between 02 and 03). The port ran at roughly a third of the
-original's stack time, and the pack flavor (4 min) was the largest single item of Act 2.
+Stack time has two honest bases, and they must not be mixed. The sum of the four stack
+intervals excludes the gaps between stacks (reading the next spec, writing the README, the
+odd re-validation); first start to last end includes them. `03-data` on AWS has no recorded
+end timestamp in `timestamps.txt` (the IAM policy followed it without a marker), so its
+interval is the ~1 min the log shows and both AWS figures carry a "~".
+
+| Basis | AWS, 4 stacks | GCP, 4 stacks | GCP / AWS |
+|---|---|---|---|
+| Sum of the stack intervals (no gaps) | 1:47 + 0:46 + 0:55 + ~1:00 = **~4 min 28 s** | 0:37 + 0:49 + 0:15 + 0:42 = **2 min 23 s** | ~53% |
+| First stack start to last stack end (with gaps) | 18:38:54 → ~18:46:00 = **~7 min 06 s** | 18:54:48 → 18:57:55 = **3 min 07 s** | ~44% |
+
+On either basis the port ran at roughly half of the original's stack time, and the pack
+flavor (4 min 03 s) was the largest single item of Act 2, more than the four GCP stacks
+together.
 
 Caveats, so the number is not oversold: Act 1 absorbed decisions Act 2 inherited for free
 (fail-closed lookup, `workspace` on remote_state, POC flag comments, README shape); both

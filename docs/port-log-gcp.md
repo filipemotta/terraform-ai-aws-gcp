@@ -12,9 +12,9 @@ README.
 ## What changes in the pack (18:50:45 → 18:54:48)
 
 Derived `gcp/CLAUDE.md`, the three agents, the five skills and the hooks from `aws/` by
-substitution, never by rewriting. Every changed line is marked `GCP:` and every file opens
-with the same note, so `diff -r aws/.claude gcp/.claude` is the answer to "what is cloud-
-specific in this pack". `CLAUDE.md`: 78 lines, 15 changed. What moved:
+substitution, never by rewriting. Every structurally changed line is marked `GCP:` and every
+file opens with the same note, so `diff -r aws/.claude gcp/.claude` is the answer to "what is
+cloud-specific in this pack". `CLAUDE.md` as first ported: 78 lines, 15 changed. What moved:
 
 | Pack element | AWS | GCP |
 |---|---|---|
@@ -24,7 +24,7 @@ specific in this pack". `CLAUDE.md`: 78 lines, 15 changed. What moved:
 | Bootstrap block | account id, S3 bucket, two role ARNs | project id, GCS bucket, two service account emails |
 | Pattern 2 (architect agent, scaffold skill) | `backend "s3"` + `use_lockfile` + `encrypt` + `key` | `backend "gcs"` + `prefix` (native lock, encrypted by default) |
 | Pattern 3 | `assume_role { role_arn }` + `default_tags { tags }` | `impersonate_service_account` + `default_labels` |
-| Patterns 7/8 (naming skill) | `Name` tag, `<type>-<project>-<region>` | `name` argument, same convention; labels lowercase |
+| Patterns 7/8 (naming skill) | `Name` tag; as published the AWS skill named resources `<env>-<role>-<index>` (`prod-web-01`) | `name` argument; the port used the monolith's `<type>-<project>-<condensed-region>`, which the AWS stacks already followed, so the two flavors of the skill disagreed until the alignment below |
 | Pattern 11 (cross-stack skill) | `config = { bucket, key, region }` | `config = { bucket, prefix }` |
 | Pattern 13 | plan-only IAM policy JSON | `roles/viewer` + bucket roles, conditional `.tflock` write |
 | Cost reviewer categories | EC2/EKS/NAT/RDS/CloudWatch | GCE/GKE/Cloud NAT/Cloud SQL/Cloud Logging |
@@ -32,9 +32,24 @@ specific in this pack". `CLAUDE.md`: 78 lines, 15 changed. What moved:
 | Hook messages | "terraform-plan-readonly role" | "terraform-plan service account"; secret grep looks for SA key JSON |
 | `tf-variables-review`, `tf-outputs-review` | — | example resource names only; logic untouched |
 
-Ten of the thirteen patterns did not change at all. What did change is exactly the list
-the thesis predicts: backend, provider auth, tags-vs-labels, remote_state config shape, the
-plan-only identity. The hooks did not change in logic.
+At the time, ten of the thirteen pattern sections in the pack text were left as they were;
+what changed was the list the thesis predicts: backend, provider auth, tags-vs-labels,
+remote_state config shape, the plan-only identity. The hooks did not change in logic.
+
+**Post-review note (same day, after the editorial review).** The pack the port started from
+was the pack as the guide ships it, and that pack disagrees with the guide's own monolith on
+several patterns (finding 6 in `pack-diff-aws-gcp.md`: file layout, state key, `var.region`,
+`<env>-<role>-<index>` names, `optional()` defaults, a second tag layer, the `~> 5.0` pin).
+The stacks had followed the monolith. Both packs were then aligned to the monolith's 13
+patterns and to the Act 1 corrections (fail-closed `lookup()`, `workspace` on remote_state,
+the lock exception, the IAM grammar redesign of pattern 13), and every changed file carries
+the note "Aligned with the chapter's 13 patterns and the Act 1 corrections". After that, the
+AWS-to-GCP diff is only cloud: 849 of ~1450 lines under `.claude/` differ, almost all of
+them inside HCL examples made of cloud nouns; on the rule text of the architect agent, 8
+patterns are untouched (1, 4, 5, 6, 8, 9, 10, 12), 3 keep the idea and change the arguments
+(2, 3, 11), 2 are different mechanisms (7, 13); the hook logic is unchanged (4 lines of
+messages and secret patterns) and `settings.json` is identical. `CLAUDE.md`: 82 lines on
+AWS, 84 on GCP, 24 differing. The per-file table is in `pack-diff-aws-gcp.md`.
 
 ## Stack 00-remote-backend (18:54:48 → 18:55:25, 1 validate run)
 
@@ -146,8 +161,10 @@ Not executed: `terraform plan`, `/infracost:scan`, `terraform apply`. Same reaso
 
 Act 1 (pack install, hooks, four stacks, IAM policy): 18:36:04 → 18:47:18, 11 min 14 s,
 one validate failure. Act 2 (pack flavor, four stacks, IAM doc): 18:50:45 → 18:57:55,
-7 min 10 s, one fmt failure; the four GCP stacks alone took 3 min 07 s against Act 1's
-~8 min for the four AWS stacks. The full table, with lines and resources, is in
-`measurement.md`. The honest caveat: Act 1 also paid for every decision Act 2 inherited
-(fail-closed lookup, `workspace` on remote_state, POC flags, README shape), and the
-provider docs for both clouds were verified up front, before Act 1 started.
+7 min 10 s, one fmt failure. Stack time, on the two bases `measurement.md` keeps apart: the
+sum of the four stack intervals is ~4 min 28 s on AWS against 2 min 23 s on GCP (~53%);
+first stack start to last stack end, gaps included, is ~7 min 06 s against 3 min 07 s
+(~44%). The full table, with lines and resources, is in `measurement.md`. The honest
+caveat: Act 1 also paid for every decision Act 2 inherited (fail-closed lookup, `workspace`
+on remote_state, POC flags, README shape), and the provider docs for both clouds were
+verified up front, before Act 1 started.

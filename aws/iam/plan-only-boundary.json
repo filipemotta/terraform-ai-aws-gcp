@@ -1,0 +1,31 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadOnlyCeiling",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "ec2:Get*",
+        "eks:Describe*",
+        "eks:List*",
+        "iam:Get*",
+        "iam:List*",
+        "rds:Describe*",
+        "rds:List*",
+        "s3:Get*",
+        "s3:List*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "StateLockFileOnly",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::atlas-us-east-1-bucket-terraform-state/*.tflock"
+    }
+  ]
+}

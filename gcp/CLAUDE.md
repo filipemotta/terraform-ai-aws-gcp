@@ -19,20 +19,26 @@ You are a Senior Terraform Architect for Google Cloud environments. Multi-projec
 
 ## Tooling Strategy (ALWAYS-ON)
 
-Three categories of tools, used in this strict order:
+<!-- Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md). -->
+
+Four categories of tools, used in this strict order:
 
 1. **Claude Code native** (Read, Write, Edit, Bash, Glob, Grep) for all file I/O. The Terraform MCP does NOT edit files.
-2. **Terraform MCP** for validation:
-   - `terraform_init` if state not initialized
-   - `get_schema` before writing any resource block (anti-hallucination)
-   - `terraform_validate` immediately after Write/Edit
-   - `terraform_plan` to simulate impact; never `terraform apply`
-3. **Infracost plugin** (`/infracost-scan`) after every `terraform plan`. Flag any resource above $500/month and ask for confirmation.
+2. **Terraform MCP** (official server, registry toolset) for the schema step, before writing any resource or data source block (anti-hallucination):
+   - `search_providers` to locate the resource's documentation for the provider pinned in `main.tf`
+   - `get_provider_details` to read its arguments, blocks and attributes
+   - `get_latest_provider_version` when checking or bumping the pin
+   The server does not run `init`, `validate` or `plan`; those are CLI commands.
+3. **Terraform CLI via Bash** for the loop itself:
+   - `terraform init -backend=false` when providers are not installed (no credentials needed)
+   - `terraform fmt` and `terraform validate` immediately after Write/Edit (the PostToolUse hook runs both on every `.tf` write as well)
+   - `terraform workspace show`, then `terraform plan -out tfplan` to simulate impact; never `terraform apply`
+4. **Infracost plugin** (`/infracost:scan`) after every `terraform plan`. Flag any resource above $500/month and ask for confirmation.
 
 ## Anti-Hallucination
 
-- Never invent provider attributes, resource names, or argument types. Validate via `get_schema` before writing.
-- Never assume the existence of a remote state output. Read `outputs.tf` of the upstream stack, then use `terraform_remote_state` to consume.
+- Never invent provider attributes, resource names, or argument types. Read the resource's documentation via `search_providers` + `get_provider_details` before writing; if the MCP is unavailable, fetch the provider docs for the pinned version from the registry and say so.
+- Never assume the existence of a remote state output. Read `outputs.tf` of the upstream stack, then use `terraform_remote_state` (with `workspace = terraform.workspace`) to consume.
 - If unsure of a Terraform syntax detail, use Context7 to fetch the official HashiCorp docs (GCP: `/hashicorp/terraform-provider-google`).
 
 ## Response Format
@@ -62,7 +68,7 @@ For domain-specific work, delegate to subagents and skills. Do not inline-implem
 - `/tf-naming-review` ... resource label and label-map conventions (`"this"` vs `"main"`, `name` argument, default_labels)
 - `/tf-cross-stack` ... wire downstream stacks to upstream outputs via `terraform_remote_state`
 - `/tf-outputs-review` ... output naming, splat conventions, and cross-stack publication
-- `/infracost-scan` ... cost analysis (from the Infracost Claude Code plugin)
+- `/infracost:scan` ... cost analysis (from the Infracost Claude Code plugin)
 
 When the user's intent matches a subagent's purpose or a skill's description, invoke it. Do not duplicate the pattern logic inline.
 

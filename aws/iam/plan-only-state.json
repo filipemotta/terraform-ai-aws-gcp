@@ -1,0 +1,36 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "StateLockFileOnly",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::atlas-us-east-1-bucket-terraform-state/*.tflock"
+    },
+    {
+      "Sid": "DenyWritesOutsideLockFile",
+      "Effect": "Deny",
+      "Action": [
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "NotResource": "arn:aws:s3:::atlas-us-east-1-bucket-terraform-state/*.tflock"
+    },
+    {
+      "Sid": "ReadStateBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "Resource": [
+        "arn:aws:s3:::atlas-us-east-1-bucket-terraform-state",
+        "arn:aws:s3:::atlas-us-east-1-bucket-terraform-state/*"
+      ]
+    }
+  ]
+}

@@ -203,3 +203,30 @@ Kept the guide's form; live validation is listed as pending in `TESTES.md`.
 
 Not executed: `terraform plan` (no credentials), `/infracost:scan` (CLI needs an
 interactive login; see `measurement.md`), `terraform apply` (human, by design).
+
+## Post-review addendum (same day, after the editorial review)
+
+Two things changed after this log was closed, recorded here rather than rewritten above.
+
+1. **The plan-only policy was redesigned (finding 9).** The doubt logged at 18:46 was
+   right: IAM's `Action` grammar is `<service>:<action>` with wildcards only in the action
+   name, and `*:Describe*` is not a documented form; `parliament` accepts it by expanding
+   it, which is why the offline lint was quiet. `iam/plan-only-policy.json` is gone.
+   `iam/README.md` now describes the role as the AWS managed `ReadOnlyAccess` (the reads,
+   maintained by AWS) + `iam/plan-only-state.json` (state read, `.tflock` write, explicit
+   deny on other object writes; no `DenyEverythingElse`, IAM denies by default) + a
+   permissions boundary `iam/plan-only-boundary.json` as the hard ceiling. The two
+   `.tflock` statements are unchanged. The `main.tf` comment in every stack now points at
+   `iam/README.md`.
+2. **The pack was aligned to the monolith (finding 6).** The divergences logged at
+   18:38 (`provider.tf`/`backend.tf`, `NN-<name>/terraform.tfstate`, `~> 5.0`) were only
+   the visible part; `var.region`, `<env>-<role>-<index>` names, `optional()` defaults and
+   a second tag layer were in the same skills. Both packs now carry the monolith's 13
+   patterns plus the corrections of this log (fail-closed `lookup()`, `workspace` on
+   remote_state, the lock exception, the grammar redesign), the real Terraform MCP tool
+   names, and `/infracost:scan` as the plugin actually names it. The scaffold skill was
+   re-run on a throwaway `04-observability`: skeleton and first resource validate in the
+   `default` workspace; the same files with the guide's direct map index fail with
+   `Invalid index` on the first resource, and the guide's original `variables.tf` snippet
+   does not parse at all (single-line block with two arguments).
+

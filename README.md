@@ -19,21 +19,21 @@ is a human step by design, and this repository was never applied by its author.
 ├── README.md
 ├── validate.sh                      # fmt + init -backend=false + validate on all 8 stacks, shellcheck, jq
 ├── aws/                             # the repository as the agent built it under the pack
-│   ├── CLAUDE.md                    # the pack's 74-line CLAUDE.md with bootstrap values filled
+│   ├── CLAUDE.md                    # the pack's slim always-on file, bootstrap values filled
 │   ├── .mcp.json                    # Terraform MCP + Context7 for anyone who clones
 │   ├── .claude/
 │   │   ├── agents/                  # terraform-architect, terraform-cost-reviewer, terraform-security-reviewer
 │   │   ├── skills/                  # tf-scaffold-stack, tf-variables-review, tf-naming-review, tf-cross-stack, tf-outputs-review
 │   │   ├── hooks/                   # pre-tool-guard.sh, post-tool-tf-validate.sh, stop-verify.sh
 │   │   └── settings.json            # PreToolUse / PostToolUse / Stop wiring
-│   ├── iam/plan-only-policy.json    # the production plan-only role, corrected for native S3 locking
+│   ├── iam/                         # the production plan-only role: ReadOnlyAccess + plan-only-state.json + plan-only-boundary.json
 │   └── terraform/
 │       ├── 00-remote-backend/       # S3 state bucket (versioned, encrypted, private)
 │       ├── 01-networking/           # VPC, 2 AZs, public + private subnets, IGW, 1 NAT, route tables
 │       ├── 02-eks/                  # EKS 1.36, t4g.small x2, IAM roles, admin access entry
 │       └── 03-data/                 # RDS PostgreSQL 18 db.t4g.micro (private), app bucket
 ├── gcp/                             # the repository as the agent ported it
-│   ├── CLAUDE.md                    # same pack, GCP flavor (15 lines differ)
+│   ├── CLAUDE.md                    # same pack, GCP flavor (cloud-specific lines marked `GCP:`)
 │   ├── .mcp.json                    # + gcloud MCP
 │   ├── .claude/                     # same agents/skills/hooks, cloud-specific lines marked `GCP:`
 │   ├── iam/plan-only-role.md        # the production plan-only service account
@@ -46,7 +46,7 @@ is a human step by design, and this repository was never applied by its author.
     ├── mcp-setup.md                 # step 0: the MCP servers and plugins the pack's loop needs
     ├── build-log-aws.md             # Act 1, as it happened
     ├── port-log-gcp.md              # Act 2, as it happened
-    ├── pack-diff-aws-gcp.md         # the 13 patterns, AWS vs GCP, plus pack-vs-monolith findings
+    ├── pack-diff-aws-gcp.md         # the 13 patterns, AWS vs GCP, the pack diff after alignment, nine findings
     └── measurement.md               # size, time, iterations, cost per cloud
 ```
 
@@ -61,15 +61,18 @@ workspace check, provider docs for every resource, write, `terraform validate`, 
 run here: no credentials), cost review, human apply. `docs/build-log-aws.md` records where
 the pack corrected the agent and where the pattern, followed literally, broke:
 `terraform validate` rejects the guide's workspace-map lookup in the `default` workspace;
-the guide's plan-only IAM role cannot acquire the native S3 lock; `terraform_remote_state`
-without `workspace` reads the wrong state once workspaces are in play.
+the guide's plan-only IAM role cannot acquire the native S3 lock and is written in a
+wildcard form IAM's grammar does not define; `terraform_remote_state` without `workspace`
+reads the wrong state once workspaces are in play.
 
 **Act 2.** The pack gets a GCP flavor (backend gcs, provider google with `default_labels`
 and service account impersonation, a plan-only service account). The agent ports stack by
 stack with the AWS stack as the spec. `docs/port-log-gcp.md` records what stayed identical
 (file layout, one object per domain, `this`/`main`, outputs, README shape, hooks) and what
 had to change (backend block, provider auth, tags to labels, remote_state config, the
-lock exception). `docs/pack-diff-aws-gcp.md` scores it: 8 of 13 patterns untouched.
+lock exception). `docs/pack-diff-aws-gcp.md` scores it: 8 of 13 patterns untouched in the
+stacks, and the same 8 in the pack text once both packs were aligned to the chapter's
+patterns after the editorial review.
 
 ## Reproduce
 
@@ -83,6 +86,7 @@ MCP), and the Infracost plugin, and check `claude mcp list` shows them connected
 ### 1. Validate everything, free
 
 ```bash
+git clone https://github.com/filipemotta/terraform-ai-aws-gcp && cd terraform-ai-aws-gcp
 bash validate.sh
 ```
 
@@ -140,7 +144,8 @@ objects on purpose; the stack READMEs say what production flips.
 | Stacks / files / HCL lines | 4 / 30 / 950 | 4 / 27 / 823 |
 | Resource blocks | 32 | 18 |
 | Wall time (pack + stacks + IAM) | 11 min 14 s | 7 min 10 s |
-| Stack time only | ~7 min | ~2.5 min |
+| Stack time, sum of the 4 stack intervals (no gaps) | ~4 min 28 s | 2 min 23 s |
+| Stack time, first start to last end (with gaps) | ~7 min 06 s | 3 min 07 s |
 | validate runs to green (failures) | 6 (1) | 5 (1, formatting) |
 | Estimated monthly cost | ≈ $152 | ≈ $114 |
 

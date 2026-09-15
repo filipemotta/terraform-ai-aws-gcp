@@ -1,11 +1,13 @@
 ---
 name: tf-outputs-review
-description: Review or write outputs.tf for a Terraform stack. Use when adding outputs, when refactoring outputs that downstream stacks consume, or when scaffolding a new stack's outputs.tf. Enforces splat for lists, stable names, and documentation in the stack README.
+description: Review or write outputs.tf for a Terraform stack. Use when adding outputs, when refactoring outputs that downstream stacks consume, or when scaffolding a new stack's outputs.tf. Enforces whole objects for singletons, splat for plurals, snake_case names, descriptions, and documentation in the stack README.
 ---
+
+> Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md).
 
 > **GCP flavor.** Same pack, same 13 patterns. Only the cloud-specific lines changed; each is marked `GCP:` inline. Diff against `../aws/` to see exactly what moved.
 
-# Output Conventions
+# Output Conventions (Pattern 10)
 
 Outputs are the **public API** of a stack. Downstream stacks consume them via `terraform_remote_state`. Once an output is consumed, renaming it is a breaking change.
 
@@ -15,68 +17,69 @@ Outputs are the **public API** of a stack. Downstream stacks consume them via `t
 
 Do not publish every resource ID "just in case". An empty `outputs.tf` for a leaf stack is fine. Outputs are a contract; keep the surface small.
 
-### 2. Splat for Lists of Resources Created with `count` or `for_each`
+### 2. Whole Object for Singletons
+
+For a single resource, expose the resource object. The consumer picks the attribute it needs (`outputs.network.id`, `outputs.network.self_link`) without a new output per attribute.
 
 ```hcl
-output "private_subnet_ids" {
-  value = google_compute_subnetwork.private[*].id
+output "network" {
+  description = "The VPC network object. Consumed by 02-gke and 03-data."
+  value       = google_compute_network.main
 }
 
-output "instance_self_links" {
-  value = google_compute_instance.worker[*].self_link
+output "subnetwork" {
+  description = "The regional subnetwork object (id, self_link, ip_cidr_range, secondary_ip_range)."
+  value       = google_compute_subnetwork.this
+}
+```
+
+### 3. Splat for Plurals Created with `count`
+
+```hcl
+output "enabled_services" {
+  description = "Project APIs enabled by this stack."
+  value       = google_project_service.this[*].service
 }
 ```
 
 Never publish one output per index. The consumer can index into the list themselves.
 
-### 3. Stable Names
+### 4. Stable snake_case Names
 
-Output names are the contract. Once a downstream stack reads `outputs.vpc_id`, renaming it requires coordinating with everyone who consumes it.
+Output names are the contract. Once a downstream stack reads `outputs.pods_range_name`, renaming it requires coordinating with everyone who consumes it.
 
-Convention: `<resource_type>_<attribute>` or `<role>_<attribute>` for clarity.
+- Singletons: the resource's role (`network`, `subnetwork`, `nat`, `state_bucket`).
+- Plurals: role + attribute suffix (`enabled_services`, `node_service_account_emails`).
+- A scalar convenience output is fine when a downstream needs exactly one attribute (`pods_range_name` for `ip_allocation_policy`, `cluster_name` for kubeconfig, `sql_connection_name`).
 
-```hcl
-output "network_id"           { value = google_compute_network.this.id }
-output "subnetwork_cidr"      { value = google_compute_subnetwork.this.ip_cidr_range }
-output "private_subnet_ids"   { value = google_compute_subnetwork.private[*].id }
-output "lb_ip_address"        { value = google_compute_global_address.web.address }
-output "sql_private_ip"       { value = google_sql_database_instance.main.private_ip_address }
-```
+### 5. Sensitive Outputs
 
-### 4. Sensitive Outputs
-
-If the output exposes a secret (password, private key, token), mark it sensitive:
+If the output exposes a secret (password, private key, token) or a resource object that carries one, mark it sensitive. GCP: `google_container_cluster` (`master_auth`) and `google_sql_database_instance` (`server_ca_cert`, root password fields) are such objects:
 
 ```hcl
-output "db_password" {
-  value     = random_password.db.result
-  sensitive = true
+output "sql_instance" {
+  description = "The Cloud SQL instance object."
+  value       = google_sql_database_instance.this
+  sensitive   = true
 }
 ```
 
 Better: avoid publishing the secret. Have the downstream stack read it directly from Secret Manager.
 
-### 5. Description on Every Output
+### 6. Description on Every Output
 
-```hcl
-output "private_subnet_ids" {
-  description = "IDs of the private subnets across all AZs. Use for EKS node groups, RDS subnet groups, internal ALBs."
-  value       = aws_subnet.private[*].id
-}
-```
+The description says what the value is and who consumes it. It is what shows up in `terraform show` and in the audit trail. Treat it as API documentation.
 
-The description is what shows up in `terraform show` and in the audit trail. Treat it as API documentation.
+### 7. Document in the Stack README
 
-### 6. Document in the Stack README
-
-The stack's `README.md` must list what it provides (outputs) and what downstream stacks consume each one. Example:
+The stack's `README.md` lists what it provides (outputs) and which downstream stacks consume each one:
 
 ```markdown
 ## Provides (for downstream stacks)
 
-- `network_id`         ... consumed by 02-gke, 03-data, 04-memorystore
-- `subnetwork_id`      ... consumed by 02-gke, 03-data
-- `lb_ip_address`      ... consumed by 05-dns (Cloud DNS record)
+- `network` ... consumed by 02-gke, 03-data
+- `subnetwork`, `pods_range_name`, `services_range_name` ... consumed by 02-gke
+- `router`, `nat` ... published for completeness
 ```
 
 This is the dependency map for the entire IaC project. Keep it current.
@@ -84,16 +87,17 @@ This is the dependency map for the entire IaC project. Keep it current.
 ## Workflow When Reviewing
 
 1. Read the current `outputs.tf`.
-2. Read which downstream stacks consume each output (grep across the repo for `data.terraform_remote_state.<this_stack>`).
+2. Read which downstream stacks consume each output (grep across the repo for `data.terraform_remote_state.<short_name>.outputs.`).
 3. Flag any:
-   - Unused outputs (nobody consumes ... candidate for removal)
-   - Missing outputs that the README claims to provide
+   - Missing outputs that a downstream `datasources.tf` or the README claims to consume
    - Outputs without `description`
-   - Lists not using splat
-   - Sensitive values not marked
+   - Per-attribute outputs of a singleton where the whole object would do
+   - Plurals not using splat
+   - Sensitive values (or objects carrying them) not marked
+   - Names not in snake_case
 4. Propose a diff.
-5. If removing an output, confirm with the user ... it's a breaking change for downstream stacks.
-6. Validate via `terraform_validate`.
+5. If removing an output, confirm with the user; it is a breaking change for downstream stacks.
+6. Run `terraform fmt` and `terraform validate` through Bash.
 
 ## Anti-Patterns to Reject
 
@@ -101,28 +105,39 @@ This is the dependency map for the entire IaC project. Keep it current.
 
 ```hcl
 # WRONG
-output "subnet_0" { value = google_compute_subnetwork.private[0].id }
-output "subnet_1" { value = google_compute_subnetwork.private[1].id }
-output "subnet_2" { value = google_compute_subnetwork.private[2].id }
+output "service_0" { value = google_project_service.this[0].service }
+output "service_1" { value = google_project_service.this[1].service }
 
 # RIGHT
-output "private_subnet_ids" { value = google_compute_subnetwork.private[*].id }
+output "enabled_services" { value = google_project_service.this[*].service }
 ```
 
-### Publishing internal IDs that downstream doesn't need
-
-If only this stack consumes the value (e.g. an intermediate resource), it does not need an output. State already has it.
-
-### Wrapping outputs in an object "for tidiness"
+### Per-attribute outputs of a singleton
 
 ```hcl
-# WRONG ... downstream now reads outputs.network.vpc_id (extra indirection)
-output "network" {
+# WRONG: three outputs, three names to keep stable
+output "network_id"        { value = google_compute_network.main.id }
+output "network_self_link" { value = google_compute_network.main.self_link }
+output "network_name"      { value = google_compute_network.main.name }
+
+# RIGHT: one object; the consumer reads outputs.network.id, outputs.network.self_link
+output "network" { value = google_compute_network.main }
+```
+
+### Hand-built wrapper objects
+
+```hcl
+# WRONG: an ad-hoc map the consumer has to learn (outputs.net.subnet_id)
+output "net" {
   value = {
-    network_id = google_compute_network.this.id
-    subnet_ids = google_compute_subnetwork.private[*].id
+    network_id = google_compute_network.main.id
+    subnet_id  = google_compute_subnetwork.this.id
   }
 }
 ```
 
-Keep outputs flat. The consumer reads `outputs.vpc_id`, not `outputs.network.vpc_id`.
+Expose the resource objects themselves (`network`, `subnetwork`) as two outputs. Resource objects are the provider's schema; wrapper maps are a schema nobody documents.
+
+### Publishing internal IDs that downstream doesn't need
+
+If only this stack consumes the value (e.g. an intermediate resource), it does not need an output. State already has it.

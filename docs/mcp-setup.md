@@ -120,11 +120,12 @@ checked against the provider docs at the pinned tag, and the fallback is recorde
 
 ## A note on tool names
 
-The pack's `CLAUDE.md` names `get_schema`, `terraform_init`, `terraform_validate` and
-`terraform_plan` as Terraform MCP tools. The official server (v1.3.0) exposes registry
+The pack as the guide ships it names `get_schema`, `terraform_init`, `terraform_validate`
+and `terraform_plan` as Terraform MCP tools. The official server (v1.3.0) exposes registry
 tools (`search_providers`, `get_provider_details`, `get_provider_capabilities`,
 `get_latest_provider_version`, `search_modules`, `get_module_details`, `search_policies`,
 ...) and HCP Terraform workspace/run tools; `init`, `validate` and `plan` run through the
 Bash tool, and the schema step is `search_providers` → `get_provider_details`. The
-behaviour the pack asks for is the same; the names are not. Treat the pack's names as the
-intent, not the API.
+behaviour the pack asks for is the same; the names were not. The `CLAUDE.md` of each flavor
+in this repository names the real tools (see its Tooling Strategy section); treat the
+guide's names as the intent, not the API.
