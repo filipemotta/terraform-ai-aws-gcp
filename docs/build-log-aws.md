@@ -1,8 +1,8 @@
-# Build log, Act 1: the AWS floor, stack by stack, under the pack
+# Build log, Act 1: the AWS floor, stack by stack, under the setup
 
 This is the log of the session that built `aws/`. It is written by the agent that did the
 work, in the order the work happened, with the real timestamps (UTC, 2026-09-15), the real
-validate output, and the places where the pack corrected the agent or where the agent had to
+validate output, and the places where the setup corrected the agent or where the agent had to
 deviate from it. Nothing here is reconstructed after the fact.
 
 Environment: Terraform v1.12.1 (local), provider `hashicorp/aws` 6.64.0 (registry API,
@@ -14,14 +14,14 @@ every stack stops at `terraform validate`; `terraform plan` is recorded as *not 
 What `docs/mcp-setup.md` describes was the first thing checked. Outcome in this session:
 
 - Terraform MCP and Context7: configured in the workspace but **not exposed as tools to
-  this agent context**. Fallback per the pack's anti-hallucination rule: provider docs
+  this agent context**. Fallback per the setup's anti-hallucination rule: provider docs
   fetched from the provider source at the pinned tag
   (`raw.githubusercontent.com/hashicorp/terraform-provider-aws/v6.64.0/website/docs/r/*.html.markdown`,
   which is the content `get_provider_details` serves), versions from the registry API
   (`registry.terraform.io/v1/providers/hashicorp/aws` → 6.64.0).
 - While checking the official server's tool list (source, `pkg/tools/**`, v1.3.0): there is
-  no `get_schema`, `terraform_init`, `terraform_validate` or `terraform_plan` tool. The
-  pack's `CLAUDE.md` names all four. First gotcha, before a single line of
+  no `get_schema`, `terraform_init`, `terraform_validate` or `terraform_plan` tool. My
+  `CLAUDE.md` named all four. First gotcha, before a single line of
   HCL.
 - Docs consulted before writing (all 2026-09-15): S3 backend (`use_lockfile`, lock file
   permissions Get/Put/Delete on `.tflock`, DynamoDB deprecated); AWS provider index
@@ -30,16 +30,16 @@ What `docs/mcp-setup.md` describes was the first thing checked. Outcome in this 
   roles, access policies, standard-support versions: 1.36 newest); RDS PostgreSQL release
   notes (18 newest production major); IAM policy grammar.
 
-## Step 1: install the pack (18:36:04)
+## Step 1: copy the agent files in (18:36:04)
 
 ```
-cp terraform-architect-pack/CLAUDE.md aws/CLAUDE.md
-cp -r terraform-architect-pack/.claude aws/.claude
+cp conventions/CLAUDE.md aws/CLAUDE.md
+cp -r conventions/.claude aws/.claude
 ```
 
-`CLAUDE.md` is 74 lines, not the 80 the README advertises. Bootstrap block filled with the
+`CLAUDE.md` is 74 lines at this point. Bootstrap block filled with the
 placeholders (`atlas`, `123456789012`, `atlas-us-east-1-bucket-terraform-state`,
-`us-east-1`, the two role ARNs). Nothing else in the pack edited.
+`us-east-1`, the two role ARNs). Nothing else in the setup edited.
 
 Hooks: the original hooks file (`hooks-devops.json`) uses a `prompt`-type PreToolUse hook
 (an LLM judges the command) and a PostToolUse command that reads
@@ -50,12 +50,12 @@ lists no such environment variable. I wrote three `command` hooks that read stdi
 testable with `shellcheck` and sample payloads. The `prompt` hook is a legitimate choice;
 it just is not testable offline. Second gotcha: the env var.
 
-Workspace check: the pack asks for `terraform workspace show` at session start. With no
+Workspace check: the setup asks for `terraform workspace show` at session start. With no
 backend initialised the answer is `default`. Noted; it matters two minutes later.
 
 ## Stack 00-remote-backend (18:38:54 → 18:40:41, 2 validate runs)
 
-Prompt to myself, as the pack's `tf-scaffold-stack` skill sequences it: next number (none
+Prompt to myself, as the setup's `tf-scaffold-stack` skill sequences it: next number (none
 exist → `00`), kebab-case name, skeleton, init, validate. The skill wants
 `provider.tf` + `backend.tf` + `main.tf`(resources) + `variables.tf` + `outputs.tf` +
 `README.md`. Convention 9 wants `main.tf` (terraform{} + provider{} only),
@@ -142,7 +142,7 @@ Labels: convention 5's own example uses `aws_iam_role "eks-node-group"`, a hyphe
 Valid HCL, discouraged by the Terraform style guide. Used `cluster` / `node` (role labels).
 Fifth (minor) gotcha.
 
-Validate run 1: `Success!`. Then a self-correction the pack would have made in review: I
+Validate run 1: `Success!`. Then a self-correction the setup would have made in review: I
 had put the two `aws_iam_policy_document` data sources in `eks-iam-role.tf`; convention 9
 says data sources live in `datasources.tf`. Moved them; validate again `Success!`.
 
@@ -175,7 +175,7 @@ documented IAM action grammar (only `service:Action*` and bare `*`). No credenti
 expands `*:Describe*` across all services and reports only a LOW "unnecessary Resource *".
 Kept that form for now; live validation is listed as pending in `TESTES.md`.
 
-## After the stacks: two things the pack did not catch
+## After the stacks: two things the setup did not catch
 
 1. **Hooks tested with real payloads (18:47 → 18:50).** `pre-tool-guard.sh` denies
    `terraform destroy` (no `-target`), `terraform apply -auto-approve`, and
@@ -221,10 +221,10 @@ Two things changed after this log was closed, recorded here rather than rewritte
    permissions boundary `iam/plan-only-boundary.json` as the hard ceiling. The two
    `.tflock` statements are unchanged. The `main.tf` comment in every stack now points at
    `iam/README.md`.
-2. **The pack was aligned to the conventions (gotcha 6).** The divergences logged at
+2. **The setup was aligned to the conventions (gotcha 6).** The divergences logged at
    18:38 (`provider.tf`/`backend.tf`, `NN-<name>/terraform.tfstate`, `~> 5.0`) were only
    the visible part; `var.region`, `<env>-<role>-<index>` names, `optional()` defaults and
-   a second tag layer were in the same skills. Both packs now carry the thirteen
+   a second tag layer were in the same skills. Both clouds' agent files now carry the thirteen
    conventions plus the corrections of this log (fail-closed `lookup()`, `workspace` on
    remote_state, the lock exception, the grammar redesign), the real Terraform MCP tool
    names, and `/infracost:scan` as the plugin actually names it. The scaffold skill was

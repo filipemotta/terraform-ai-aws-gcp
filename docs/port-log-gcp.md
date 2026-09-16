@@ -9,14 +9,14 @@ AWS*. Each `gcp/terraform/NN-*` was written with the matching `aws/terraform/NN-
 resource by resource, and the result of the translation is the table in each stack's
 README.
 
-## What changes in the pack (18:50:45 → 18:54:48)
+## What changes in the setup (18:50:45 → 18:54:48)
 
 Derived `gcp/CLAUDE.md`, the three agents, the five skills and the hooks from `aws/` by
 substitution, never by rewriting. Every structurally changed line is marked `GCP:` and every
 file opens with the same note, so `diff -r aws/.claude gcp/.claude` is the answer to "what is
-cloud-specific in this pack". `CLAUDE.md` as first ported: 78 lines, 15 changed. What moved:
+cloud-specific in this setup". `CLAUDE.md` as first ported: 78 lines, 15 changed. What moved:
 
-| Pack element | AWS | GCP |
+| Agent-file element | AWS | GCP |
 |---|---|---|
 | Identity line | "for AWS environments. Multi-account…" | "for Google Cloud environments. Multi-project…" |
 | Hard guardrail sentence | `terraform-plan-readonly` IAM role | `terraform-plan@…` service account, impersonated |
@@ -32,17 +32,17 @@ cloud-specific in this pack". `CLAUDE.md` as first ported: 78 lines, 15 changed.
 | Hook messages | "terraform-plan-readonly role" | "terraform-plan service account"; secret grep looks for SA key JSON |
 | `tf-variables-review`, `tf-outputs-review` | — | example resource names only; logic untouched |
 
-At the time, ten of the thirteen convention sections in the pack text were left as they
+At the time, ten of the thirteen convention sections in the setup text were left as they
 were; what changed was the list the thesis predicts: backend, provider auth, tags-vs-labels,
 remote_state config shape, the plan-only identity. The hooks did not change in logic.
 
 **Post-review note (same day, after the editorial review).** The port started from the
-original pack, and that pack disagreed with the convention document on several points
+earlier version of these files, and that setup disagreed with the convention document on several points
 (gotcha 6 in `gotchas-and-conventions.md`: file layout, state key, `var.region`,
 `<env>-<role>-<index>` names, `optional()` defaults, a second tag layer, the `~> 5.0` pin).
 The convention document said `main.tf` with only `terraform` and `provider` while the
 scaffold skill produced `provider.tf` + `backend.tf`, and the stacks follow the convention.
-Both packs were then aligned to the thirteen conventions and to the Act 1 corrections
+Both clouds' agent files were then aligned to the thirteen conventions and to the Act 1 corrections
 (fail-closed `lookup()`, `workspace` on remote_state, the lock exception, the IAM grammar
 redesign of convention 13), and every changed file carries the note "Conventions v2: the
 thirteen patterns plus the fixes the AWS build surfaced". After that, the AWS-to-GCP diff
@@ -162,8 +162,8 @@ Not executed: `terraform plan`, `/infracost:scan`, `terraform apply`. Same reaso
 
 ## What the translation cost, against the original
 
-Act 1 (pack install, hooks, four stacks, IAM policy): 18:36:04 → 18:47:18, 11 min 14 s,
-one validate failure. Act 2 (pack flavor, four stacks, IAM doc): 18:50:45 → 18:57:55,
+Act 1 (copying the agent files, hooks, four stacks, IAM policy): 18:36:04 → 18:47:18, 11 min 14 s,
+one validate failure. Act 2 (agent-file port, four stacks, IAM doc): 18:50:45 → 18:57:55,
 7 min 10 s, one fmt failure. Stack time, on the two bases `measurement.md` keeps apart: the
 sum of the four stack intervals is ~4 min 28 s on AWS against 2 min 23 s on GCP (~53%);
 first stack start to last stack end, gaps included, is ~7 min 06 s against 3 min 07 s

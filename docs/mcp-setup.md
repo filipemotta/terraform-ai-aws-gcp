@@ -1,6 +1,6 @@
-# MCP setup: what the pack's loop needs before the first prompt
+# MCP setup: what the loop needs before the first prompt
 
-The pack's tooling strategy is a loop: **schema → write → validate → plan → cost → review →
+The setup's tooling strategy is a loop: **schema → write → validate → plan → cost → review →
 human apply**. Three of those steps call tools that are not part of Claude Code itself.
 Install them once; the repository ships `.mcp.json` files so a fresh clone already knows
 about the servers.
@@ -97,9 +97,9 @@ claude mcp list
 
 Every server should show `✔ Connected`. `⏸ Pending approval` means the project-scoped
 server is waiting for the trust dialog; `✘ Failed to connect` usually means Docker is not
-running (terraform) or `npx` cannot download the package (context7, gcloud).
+running (terraform) or `npx` cannot download the setupage (context7, gcloud).
 
-## 5. What the pack does when a server is down
+## 5. What the setup does when a server is down
 
 The loop degrades, it does not skip:
 
@@ -120,12 +120,12 @@ checked against the provider docs at the pinned tag, and the fallback is recorde
 
 ## A note on tool names
 
-The original pack named `get_schema`, `terraform_init`, `terraform_validate`
+The earlier version of these files named `get_schema`, `terraform_init`, `terraform_validate`
 and `terraform_plan` as Terraform MCP tools. The official server (v1.3.0) exposes registry
 tools (`search_providers`, `get_provider_details`, `get_provider_capabilities`,
 `get_latest_provider_version`, `search_modules`, `get_module_details`, `search_policies`,
 ...) and HCP Terraform workspace/run tools; `init`, `validate` and `plan` run through the
 Bash tool, and the schema step is `search_providers` → `get_provider_details`. The
-behaviour the pack asks for is the same; the names were not. The `CLAUDE.md` of each flavor
+behaviour the setup asks for is the same; the names were not. The `CLAUDE.md` of each flavor
 in this repository names the real tools (see its Tooling Strategy section); read the old
 names as the intent, not the API.

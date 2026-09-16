@@ -16,7 +16,7 @@ up-front documentation verification (18:29–18:36) which served both clouds.
 | `data` blocks | 4 (2 remote_state, 2 policy documents) | 2 (remote_state) | |
 | `variable` blocks | 13 | 14 | |
 | `output` blocks | 17 | 17 | 1.00 |
-| Pack files (`CLAUDE.md` + `.claude/**`) | 13 | 13 | 1.00 |
+| Agent files (`CLAUDE.md` + `.claude/**`) | 13 | 13 | 1.00 |
 | `CLAUDE.md` lines | 82 | 84 (24 lines differ) | after the post-review alignment; 76 / 78 (15 differing) as first built |
 
 Per stack:
@@ -37,15 +37,15 @@ route tables and associations that GCP expresses as one subnet plus Cloud NAT.
 | Phase | Start | End | Elapsed | validate runs (fails) |
 |---|---|---|---|---|
 | Docs verification, both clouds + hooks + MCP | 18:29 | 18:36 | ~7 min | — |
-| **Act 1: AWS** (pack install, hooks, `.mcp.json`, 4 stacks, IAM policy) | 18:36:04 | 18:47:18 | **11 min 14 s** | 6 (1) |
+| **Act 1: AWS** (copying the agent files, hooks, `.mcp.json`, 4 stacks, IAM policy) | 18:36:04 | 18:47:18 | **11 min 14 s** | 6 (1) |
 | ├ 00-remote-backend | 18:38:54 | 18:40:41 | 1 min 47 s | 2 (1: `Invalid index`) |
 | ├ 01-networking | 18:41:28 | 18:42:14 | 46 s | 1 (0) |
 | ├ 02-eks | 18:43:23 | 18:44:18 | 55 s | 2 (0; second after moving data sources) |
 | ├ 03-data | 18:44:54 | ~18:46:00 | ~1 min | 1 (0) |
 | └ IAM plan-only policy + offline lint | ~18:46 | 18:47:18 | ~1 min | — |
 | Act 1 verification (hook tests, remote_state fix) | 18:47:18 | 18:50:45 | 3 min 27 s | 2 (0) |
-| **Act 2: GCP** (pack flavor, 4 stacks, IAM doc) | 18:50:45 | 18:57:55 | **7 min 10 s** | 5 (1 fmt) |
-| ├ pack flavor (CLAUDE.md, 3 agents, 5 skills, hooks) | 18:50:45 | 18:54:48 | 4 min 03 s | — |
+| **Act 2: GCP** (agent-file port, 4 stacks, IAM doc) | 18:50:45 | 18:57:55 | **7 min 10 s** | 5 (1 fmt) |
+| ├ agent-file port (CLAUDE.md, 3 agents, 5 skills, hooks) | 18:50:45 | 18:54:48 | 4 min 03 s | — |
 | ├ 00-remote-backend | 18:54:48 | 18:55:25 | 37 s | 1 (0) |
 | ├ 01-networking | 18:55:25 | 18:56:14 | 49 s | 1 (0) |
 | ├ 02-gke | 18:56:14 | 18:56:29 | 15 s | 2 (1: `fmt -check`) |
@@ -63,7 +63,7 @@ interval is the ~1 min the log shows and both AWS figures carry a "~".
 | Sum of the stack intervals (no gaps) | 1:47 + 0:46 + 0:55 + ~1:00 = **~4 min 28 s** | 0:37 + 0:49 + 0:15 + 0:42 = **2 min 23 s** | ~53% |
 | First stack start to last stack end (with gaps) | 18:38:54 → ~18:46:00 = **~7 min 06 s** | 18:54:48 → 18:57:55 = **3 min 07 s** | ~44% |
 
-On either basis the port ran at roughly half of the original's stack time, and the pack
+On either basis the port ran at roughly half of the original's stack time, and the setup
 flavor (4 min 03 s) was the largest single item of Act 2, more than the four GCP stacks
 together.
 
