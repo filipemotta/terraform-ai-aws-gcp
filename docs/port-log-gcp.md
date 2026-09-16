@@ -22,34 +22,37 @@ cloud-specific in this pack". `CLAUDE.md` as first ported: 78 lines, 15 changed.
 | Hard guardrail sentence | `terraform-plan-readonly` IAM role | `terraform-plan@…` service account, impersonated |
 | Context7 library | `/hashicorp/terraform-provider-aws` | `/hashicorp/terraform-provider-google` |
 | Bootstrap block | account id, S3 bucket, two role ARNs | project id, GCS bucket, two service account emails |
-| Pattern 2 (architect agent, scaffold skill) | `backend "s3"` + `use_lockfile` + `encrypt` + `key` | `backend "gcs"` + `prefix` (native lock, encrypted by default) |
-| Pattern 3 | `assume_role { role_arn }` + `default_tags { tags }` | `impersonate_service_account` + `default_labels` |
-| Patterns 7/8 (naming skill) | `Name` tag; as published the AWS skill named resources `<env>-<role>-<index>` (`prod-web-01`) | `name` argument; the port used the monolith's `<type>-<project>-<condensed-region>`, which the AWS stacks already followed, so the two flavors of the skill disagreed until the alignment below |
-| Pattern 11 (cross-stack skill) | `config = { bucket, key, region }` | `config = { bucket, prefix }` |
-| Pattern 13 | plan-only IAM policy JSON | `roles/viewer` + bucket roles, conditional `.tflock` write |
+| Convention 2 (architect agent, scaffold skill) | `backend "s3"` + `use_lockfile` + `encrypt` + `key` | `backend "gcs"` + `prefix` (native lock, encrypted by default) |
+| Convention 3 | `assume_role { role_arn }` + `default_tags { tags }` | `impersonate_service_account` + `default_labels` |
+| Conventions 7/8 (naming skill) | `Name` tag; as published the AWS skill named resources `<env>-<role>-<index>` (`prod-web-01`) | `name` argument; the port used convention 8's `<type>-<project>-<condensed-region>`, which the AWS stacks already followed, so the two flavors of the skill disagreed until the alignment below |
+| Convention 11 (cross-stack skill) | `config = { bucket, key, region }` | `config = { bucket, prefix }` |
+| Convention 13 | plan-only IAM policy JSON | `roles/viewer` + bucket roles, conditional `.tflock` write |
 | Cost reviewer categories | EC2/EKS/NAT/RDS/CloudWatch | GCE/GKE/Cloud NAT/Cloud SQL/Cloud Logging |
 | Security reviewer domains | IAM wildcards, ExternalId, KMS, SGs, CloudTrail | basic roles, SA keys, CMEK, firewall rules, Audit Logs |
 | Hook messages | "terraform-plan-readonly role" | "terraform-plan service account"; secret grep looks for SA key JSON |
 | `tf-variables-review`, `tf-outputs-review` | — | example resource names only; logic untouched |
 
-At the time, ten of the thirteen pattern sections in the pack text were left as they were;
-what changed was the list the thesis predicts: backend, provider auth, tags-vs-labels,
+At the time, ten of the thirteen convention sections in the pack text were left as they
+were; what changed was the list the thesis predicts: backend, provider auth, tags-vs-labels,
 remote_state config shape, the plan-only identity. The hooks did not change in logic.
 
-**Post-review note (same day, after the editorial review).** The pack the port started from
-was the pack as the guide ships it, and that pack disagrees with the guide's own monolith on
-several patterns (finding 6 in `pack-diff-aws-gcp.md`: file layout, state key, `var.region`,
+**Post-review note (same day, after the editorial review).** The port started from the
+original pack, and that pack disagreed with the convention document on several points
+(gotcha 6 in `gotchas-and-conventions.md`: file layout, state key, `var.region`,
 `<env>-<role>-<index>` names, `optional()` defaults, a second tag layer, the `~> 5.0` pin).
-The stacks had followed the monolith. Both packs were then aligned to the monolith's 13
-patterns and to the Act 1 corrections (fail-closed `lookup()`, `workspace` on remote_state,
-the lock exception, the IAM grammar redesign of pattern 13), and every changed file carries
-the note "Aligned with the chapter's 13 patterns and the Act 1 corrections". After that, the
-AWS-to-GCP diff is only cloud: 849 of ~1450 lines under `.claude/` differ, almost all of
+The convention document said `main.tf` with only `terraform` and `provider` while the
+scaffold skill produced `provider.tf` + `backend.tf`, and the stacks follow the convention.
+Both packs were then aligned to the thirteen conventions and to the Act 1 corrections
+(fail-closed `lookup()`, `workspace` on remote_state, the lock exception, the IAM grammar
+redesign of convention 13), and every changed file carries the note "Conventions v2: the
+thirteen patterns plus the fixes the AWS build surfaced". After that, the AWS-to-GCP diff
+is only cloud: 849 of ~1450 lines under `.claude/` differ, almost all of
 them inside HCL examples made of cloud nouns; on the rule text of the architect agent, 8
-patterns are untouched (1, 4, 5, 6, 8, 9, 10, 12), 3 keep the idea and change the arguments
-(2, 3, 11), 2 are different mechanisms (7, 13); the hook logic is unchanged (4 lines of
-messages and secret patterns) and `settings.json` is identical. `CLAUDE.md`: 82 lines on
-AWS, 84 on GCP, 24 differing. The per-file table is in `pack-diff-aws-gcp.md`.
+conventions are untouched (1, 4, 5, 6, 8, 9, 10, 12), 3 keep the idea and change the
+arguments (2, 3, 11), 2 are different mechanisms (7, 13); the hook logic is unchanged
+(4 lines of messages and secret patterns) and `settings.json` is identical. `CLAUDE.md`:
+82 lines on AWS, 84 on GCP, 24 differing. The per-file table is in
+`gotchas-and-conventions.md`.
 
 ## Stack 00-remote-backend (18:54:48 → 18:55:25, 1 validate run)
 
@@ -68,8 +71,8 @@ Four resources became one, and one new resource appeared that has no AWS counter
 Provider block: `lookup(local.workspace_service_account, terraform.workspace,
 var.impersonation.service_account)`, the fail-closed shape from Act 1, carried over as is.
 Backend: `prefix = "remote-backend"`; the state object becomes
-`remote-backend/<workspace>.tfstate`, so the monolith's `<stack>/<stack>.tfstate` key rule
-cannot be reproduced literally. Recorded in `pack-diff-aws-gcp.md`.
+`remote-backend/<workspace>.tfstate`, so convention 2's `<stack>/<stack>.tfstate` key rule
+cannot be reproduced literally. Recorded in `gotchas-and-conventions.md`.
 
 Validate run 1: `Success!` (provider 8.2.0 installed on init).
 
@@ -87,9 +90,9 @@ What stayed identical: the file-per-resource layout (`vpc.tf`, `subnetwork.tf`,
 the network and `this` for singletons, `outputs.tf` exposing whole objects plus the two
 range names downstream needs, the README's Provides/Consumes.
 
-One pattern edge: `secondary_ip_range` is a nested block list, and nested blocks cannot use
-`count`; it needs `dynamic` + `for_each`. Section 6's "count for plurals" is a rule about
-resources. Noted as a clarification for the guide.
+One convention edge: `secondary_ip_range` is a nested block list, and nested blocks cannot
+use `count`; it needs `dynamic` + `for_each`. Convention 6's "count for plurals" is a rule
+about resources, and now says so.
 
 Validate run 1: `Success!`.
 

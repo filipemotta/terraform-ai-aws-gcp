@@ -3,7 +3,7 @@ name: tf-variables-review
 description: Review or refactor Terraform input variables to follow the nested-object convention with complete inline defaults. Use when the user asks to add, refactor, or review variables in a stack, or when scaffolding a new stack's variables.tf.
 ---
 
-> Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md).
+> Conventions v2: the thirteen patterns plus the fixes the AWS build surfaced (see docs/gotchas-and-conventions.md).
 
 > **GCP flavor.** Same pack, same 13 patterns. Only the cloud-specific lines changed; each is marked `GCP:` inline. Diff against `../aws/` to see exactly what moved.
 

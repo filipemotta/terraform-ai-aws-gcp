@@ -10,7 +10,7 @@ about the servers.
 | schema (anti-hallucination) | **Terraform MCP** (HashiCorp)     | `search_providers` + `get_provider_details` return the provider's own resource docs for the pinned version. No attribute is written from memory. |
 | docs (syntax, backends)     | **Context7**                      | `resolve-library-id` + `query-docs` for Terraform language docs and provider guides when the registry doc is not enough. |
 | cloud (read-only checks)    | **AWS MCP** (`aws-core` plugin) / **gcloud MCP** | Read account facts the plan needs (regions, quotas, existing resources) without leaving the session. |
-| cost                        | **Infracost plugin**              | `/infracost:scan` after `terraform plan`; the guide's $500/month gate.        |
+| cost                        | **Infracost plugin**              | `/infracost:scan` after `terraform plan`; the $500/month gate of convention 13. |
 
 Everything below was verified on 2026-09-15 against the official sources linked.
 
@@ -120,12 +120,12 @@ checked against the provider docs at the pinned tag, and the fallback is recorde
 
 ## A note on tool names
 
-The pack as the guide ships it names `get_schema`, `terraform_init`, `terraform_validate`
+The original pack named `get_schema`, `terraform_init`, `terraform_validate`
 and `terraform_plan` as Terraform MCP tools. The official server (v1.3.0) exposes registry
 tools (`search_providers`, `get_provider_details`, `get_provider_capabilities`,
 `get_latest_provider_version`, `search_modules`, `get_module_details`, `search_policies`,
 ...) and HCP Terraform workspace/run tools; `init`, `validate` and `plan` run through the
 Bash tool, and the schema step is `search_providers` → `get_provider_details`. The
 behaviour the pack asks for is the same; the names were not. The `CLAUDE.md` of each flavor
-in this repository names the real tools (see its Tooling Strategy section); treat the
-guide's names as the intent, not the API.
+in this repository names the real tools (see its Tooling Strategy section); read the old
+names as the intent, not the API.

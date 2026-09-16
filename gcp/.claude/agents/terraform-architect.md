@@ -4,7 +4,7 @@ description: Senior Terraform Architect (GCP flavor). Use when designing new mod
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
-> Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md).
+> Conventions v2: the thirteen patterns plus the fixes the AWS build surfaced (see docs/gotchas-and-conventions.md).
 
 > **GCP flavor.** Same pack, same 13 patterns. Only the cloud-specific lines changed; each is marked `GCP:` inline. Diff against `../aws/` to see exactly what moved.
 
@@ -64,7 +64,7 @@ terraform {
 ```
 
 - GCP: the `gcs` backend locks natively and the bucket encrypts at rest by default; there is no `use_lockfile`, no `encrypt`, no lock table.
-- GCP: `prefix = <stack>`, where `<stack>` is the directory name without its numeric prefix (`networking` for `01-networking`, `gke` for `02-gke`). The guide's `<stack>/<stack>.tfstate` key has no equivalent: GCS names the object `<prefix>/<workspace>.tfstate`.
+- GCP: `prefix = <stack>`, where `<stack>` is the directory name without its numeric prefix (`networking` for `01-networking`, `gke` for `02-gke`). The AWS `<stack>/<stack>.tfstate` key has no equivalent: GCS names the object `<prefix>/<workspace>.tfstate`.
 - Google provider: always `~> 8.0`.
 - Named workspaces (`sandbox`, `staging`, `production`) store their state at `<prefix>/<workspace>.tfstate`; see Pattern 11 for the consequence on cross-stack reads.
 

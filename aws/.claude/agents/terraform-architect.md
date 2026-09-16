@@ -4,7 +4,7 @@ description: Senior Terraform Architect. Use when designing new modules, scaffol
 tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
-> Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md).
+> Conventions v2: the thirteen patterns plus the fixes the AWS build surfaced (see docs/gotchas-and-conventions.md).
 
 # Terraform Architect Subagent
 

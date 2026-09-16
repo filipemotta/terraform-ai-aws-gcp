@@ -3,7 +3,7 @@ name: tf-naming-review
 description: Enforce Terraform resource label and tag naming conventions. Use when reviewing or writing resource blocks, when the user asks to "rename this resource" or "add tags", or when auditing a stack for naming consistency.
 ---
 
-> Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md).
+> Conventions v2: the thirteen patterns plus the fixes the AWS build surfaced (see docs/gotchas-and-conventions.md).
 
 # Resource Naming and Tag Conventions
 

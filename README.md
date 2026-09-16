@@ -1,13 +1,15 @@
-# Terraform with an AI agent, the guide's way: one pattern, AWS then GCP
+# Terraform with an AI agent: one set of conventions, AWS then GCP
 
-Companion repository for the article *"The conventions are the prompt"*. It holds two
-Terraform estates built by a Claude Code agent under the DevOps-AI guide's Terraform
-Architect pack, and the logs of how they were built.
+Two Terraform estates built with an AI agent (Claude Code) under one set of conventions,
+and the logs of how they were built. The conventions live in the repository as files the
+agent reads on every turn: an always-on `CLAUDE.md`, three subagents, five skills and three
+hooks.
 
 - `aws/` ... the AWS floor: state bucket, VPC, EKS, RDS + S3. Built first, stack by stack.
 - `gcp/` ... the same floor on Google Cloud: state bucket, VPC, GKE, Cloud SQL + GCS. Built
   second, with the AWS stacks as the specification.
-- `docs/` ... the build log of each act, the pattern-by-pattern diff, the measurement.
+- `docs/` ... the build log of each act, the gotchas, the convention-by-convention diff,
+  the measurement.
 
 Everything validates offline (`bash validate.sh`). Nothing here applies anything: `apply`
 is a human step by design, and this repository was never applied by its author.
@@ -46,7 +48,7 @@ is a human step by design, and this repository was never applied by its author.
     ├── mcp-setup.md                 # step 0: the MCP servers and plugins the pack's loop needs
     ├── build-log-aws.md             # Act 1, as it happened
     ├── port-log-gcp.md              # Act 2, as it happened
-    ├── pack-diff-aws-gcp.md         # the 13 patterns, AWS vs GCP, the pack diff after alignment, nine findings
+    ├── gotchas-and-conventions.md   # nine gotchas, the 13 conventions AWS vs GCP, the pack diff
     └── measurement.md               # size, time, iterations, cost per cloud
 ```
 
@@ -59,20 +61,21 @@ resource-by-resource translation from its AWS twin).
 three hooks). The agent builds the AWS floor following the pack's loop for every stack:
 workspace check, provider docs for every resource, write, `terraform validate`, plan (not
 run here: no credentials), cost review, human apply. `docs/build-log-aws.md` records where
-the pack corrected the agent and where the pattern, followed literally, broke:
-`terraform validate` rejects the guide's workspace-map lookup in the `default` workspace;
-the guide's plan-only IAM role cannot acquire the native S3 lock and is written in a
-wildcard form IAM's grammar does not define; `terraform_remote_state` without `workspace`
-reads the wrong state once workspaces are in play.
+the pack corrected the agent and where a convention, followed literally, broke:
+`terraform validate` rejects the workspace-map lookup in the `default` workspace; a
+plan-only IAM role that can only read cannot acquire the native S3 lock, and the read-all
+wildcard form it is usually written in is not one IAM's grammar defines;
+`terraform_remote_state` without `workspace` reads the wrong state once workspaces are in
+play. All nine are in `docs/gotchas-and-conventions.md`.
 
 **Act 2.** The pack gets a GCP flavor (backend gcs, provider google with `default_labels`
 and service account impersonation, a plan-only service account). The agent ports stack by
 stack with the AWS stack as the spec. `docs/port-log-gcp.md` records what stayed identical
 (file layout, one object per domain, `this`/`main`, outputs, README shape, hooks) and what
 had to change (backend block, provider auth, tags to labels, remote_state config, the
-lock exception). `docs/pack-diff-aws-gcp.md` scores it: 8 of 13 patterns untouched in the
-stacks, and the same 8 in the pack text once both packs were aligned to the chapter's
-patterns after the editorial review.
+lock exception). `docs/gotchas-and-conventions.md` scores it: 8 of 13 conventions untouched
+in the stacks, and the same 8 in the pack text once both flavors carried the same
+conventions.
 
 ## Reproduce
 

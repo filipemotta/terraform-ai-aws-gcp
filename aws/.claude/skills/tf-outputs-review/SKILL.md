@@ -3,7 +3,7 @@ name: tf-outputs-review
 description: Review or write outputs.tf for a Terraform stack. Use when adding outputs, when refactoring outputs that downstream stacks consume, or when scaffolding a new stack's outputs.tf. Enforces whole objects for singletons, splat for plurals, snake_case names, descriptions, and documentation in the stack README.
 ---
 
-> Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md).
+> Conventions v2: the thirteen patterns plus the fixes the AWS build surfaced (see docs/gotchas-and-conventions.md).
 
 # Output Conventions (Pattern 10)
 

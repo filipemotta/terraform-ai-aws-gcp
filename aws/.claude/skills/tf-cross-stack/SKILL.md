@@ -1,9 +1,9 @@
 ---
 name: tf-cross-stack
-description: Wire a downstream Terraform stack to consume outputs from an upstream stack via terraform_remote_state. Use when adding a new stack that depends on resources from a lower-numbered stack, or when refactoring a monolithic stack into separate stacks.
+description: Wire a downstream Terraform stack to consume outputs from an upstream stack via terraform_remote_state. Use when adding a new stack that depends on resources from a lower-numbered stack, or when splitting one oversized stack into separate stacks.
 ---
 
-> Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md).
+> Conventions v2: the thirteen patterns plus the fixes the AWS build surfaced (see docs/gotchas-and-conventions.md).
 
 # Cross-Stack State Consumption (Pattern 11)
 
@@ -135,7 +135,7 @@ If the upstream stack is not in your repo (e.g. a shared platform stack owned by
 
 Document the dependency in your stack's README.
 
-## Migration: Splitting a Monolithic Stack
+## Migration: Splitting an Oversized Stack
 
 When refactoring one fat stack into two:
 

@@ -7,11 +7,11 @@ AWS answers `AccessDenied`. The role is built from three pieces:
 
 | Piece | What it is | Why |
 |---|---|---|
-| `arn:aws:iam::aws:policy/ReadOnlyAccess` | AWS managed policy, attached | Enumerates the read actions of every service (`ec2:Describe*`, `eks:List*`, `s3:Get*`, ...) and is maintained by AWS as services appear. This replaces the guide's hand-written `*:Describe*` / `*:List*` / `*:Get*`. |
+| `arn:aws:iam::aws:policy/ReadOnlyAccess` | AWS managed policy, attached | Enumerates the read actions of every service (`ec2:Describe*`, `eks:List*`, `s3:Get*`, ...) and is maintained by AWS as services appear. This replaces the hand-written `*:Describe*` / `*:List*` / `*:Get*` list a plan-only role is usually given. |
 | `plan-only-state.json` | Customer managed policy, attached | Read on the state bucket, write on the lock file only, explicit deny on every other object write. |
 | `plan-only-boundary.json` | Customer managed policy, set as the role's **permissions boundary** | The ceiling. Whatever gets attached to the role later, its effective permissions stay inside this policy. |
 
-## Why not the guide's policy (section 13)
+## Why not the obvious read-all policy
 
 Two reasons, one per statement.
 
@@ -20,18 +20,19 @@ Two reasons, one per statement.
 and the name of an action. Action names can include wildcards") and the `Action` element
 reference (`reference_policies_elements_action`) allow wildcards in the action name
 (`s3:Get*`, `iam:*AccessKey*`), the whole-service form (`s3:*`) and the bare `*`. A wildcard
-in the service namespace (`*:Describe*`) is not one of the documented forms. The guide's
-`ReadAllResources` and `DenyEverythingElse` statements are built on it. `ReadOnlyAccess`
+in the service namespace (`*:Describe*`) is not one of the documented forms, and the obvious
+`ReadAllResources` + `DenyEverythingElse` pair is built on exactly that. `ReadOnlyAccess`
 says the same thing in the grammar's own words, and AWS keeps it current (v188 on
 2026-07-21). Offline linters do not catch this: `parliament` expands `*:Describe*` across
 every service it knows and reports nothing; the grammar is the source.
 
-**The lock.** The guide grants only `GetObject` / `GetObjectVersion` / `ListBucket` on the
-state bucket. With native locking (`use_lockfile = true`), `terraform plan` acquires a lock
-by creating `<key>.tflock` and deletes it when done. The S3 backend documentation lists
+**The lock.** A plain read-only policy grants `GetObject` / `GetObjectVersion` /
+`ListBucket` on the state bucket and stops there. With native locking
+(`use_lockfile = true`), `terraform plan` acquires a lock by creating `<key>.tflock` and
+deletes it when done. The S3 backend documentation lists
 `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the `.tflock` path as required
 (https://developer.hashicorp.com/terraform/language/backend/s3, "Permissions Required").
-With the guide's policy, `terraform plan` on production fails before it reads a single
+With that policy, `terraform plan` on production fails before it reads a single
 resource: `Error acquiring the state lock ... AccessDenied`.
 
 ## `plan-only-state.json`
@@ -116,7 +117,7 @@ production) is likewise not shipped.
 
 ## The second exit
 
-Keep the guide's read-only shape and run `terraform plan -lock=false` on production. Simpler,
+Keep the plain read-only shape and run `terraform plan -lock=false` on production. Simpler,
 but the plan runs unlocked and a concurrent apply can make it stale. This repository ships
 the lock exception instead, because locking is what keeps a human's apply and the agent's
 plan from crossing.
@@ -127,7 +128,7 @@ plan from crossing.
 - Offline lint: `parliament --string "$(cat plan-only-state.json)"` returns no findings;
   `parliament --string "$(cat plan-only-boundary.json)"` returns one LOW, "unnecessary use
   of Resource *", inherent to a read ceiling. Note that `parliament` does not reject the
-  guide's `*:Describe*` form; the grammar reference does.
+  `*:Describe*` form; the grammar reference does.
 - Live validation, when credentials exist:
   `aws accessanalyzer validate-policy --policy-type IDENTITY_POLICY --policy-document file://plan-only-state.json`
   (and the boundary). Pending until a session has credentials.

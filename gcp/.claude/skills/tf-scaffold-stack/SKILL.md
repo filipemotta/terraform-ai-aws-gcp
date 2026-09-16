@@ -3,7 +3,7 @@ name: tf-scaffold-stack
 description: Scaffold a new numbered Terraform stack following the project's architectural conventions. Use when the user asks to "create a new stack", "scaffold module X", or "add a stack for Y". Produces the directory, the main.tf/variables.tf/outputs.tf/README.md skeleton (plus datasources.tf when the stack consumes upstream state), and validates it in the default workspace.
 ---
 
-> Aligned with the chapter's 13 patterns and the Act 1 corrections (see docs/pack-diff-aws-gcp.md).
+> Conventions v2: the thirteen patterns plus the fixes the AWS build surfaced (see docs/gotchas-and-conventions.md).
 
 > **GCP flavor.** Same pack, same 13 patterns. Only the cloud-specific lines changed; each is marked `GCP:` inline. Diff against `../aws/` to see exactly what moved.
 

@@ -120,7 +120,7 @@ the NAT.
 
 ### Reading the two totals
 
-Both floors are under the organisation's $250 POC guardrail and far under the guide's
-$500 per-resource alert. The comparison is not "GCP is cheaper": it is that a single NAT
-gateway plus one public IP on AWS costs about what two GKE nodes cost on GCP, and that a
-control plane is a control plane on both sides.
+Both floors are under the organisation's $250 POC guardrail and far under the $500
+per-resource alert convention 13 sets. The comparison is not "GCP is cheaper": it is that a
+single NAT gateway plus one public IP on AWS costs about what two GKE nodes cost on GCP,
+and that a control plane is a control plane on both sides.
